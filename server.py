@@ -1,5 +1,6 @@
 import os
 import socket
+import json
 
 message = "Polaczono z serwerem"
 HOST = socket.gethostbyname(socket.gethostname()) # IPv4 address
@@ -25,11 +26,11 @@ while True:
     # This socket called "conn" is for communication with a client
     conn, addr = s.accept()
     print(f'Connected to {addr}')
-    print(conn)
 
     # Get data sended by client and decode them
     # Buffer size = 1024 bytes
-    data = conn.recv(1024).decode()
+    data = json.loads(conn.recv(1024).decode("utf-8"))
+    print(data)
 
     conn.send(message.encode("utf-8"))
 
