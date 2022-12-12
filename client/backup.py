@@ -44,9 +44,9 @@ def make_backup(source_path):
     zip_name = source_path.split("/")[-1] + "_backup"
     
     shutil.make_archive(zip_name, "zip", source_path)
-    zip_path = os.path.join(os.getcwd(), "backup.zip")
+    zip_path = os.path.join(os.getcwd(), zip_name+".zip")
     
-    return zip_path
+    return zip_name, zip_path
 
     # shutil.unpack_archive(zip_path, destination_path, "zip")
 

@@ -29,15 +29,10 @@ Many users can make backup on one server, so there need to be some kind of login
 
 ### SENDING BACKUP
 After everything is ready, it's time to send backup to server.
-1) Send list of files and directories names to the server.
-2) Send zip to the server (you have to make extra code READ MORE) and delete zip on the client side.
-3) Server redirect zip to correct folder
-4) Unzip the backup,
-    - If the files has the same names, the files will be overridden by the new backup
-    - If in the old backup there is no file/folder name on the list, that isn't in new backup, remove that file.
-
-Alternative   
-4) Take the name of zip folder, extract _backup.zip from it, use created name to check if there is existing folder. If so, then remove it completly and then unzip new backup. (This way we will create new backup files and in the same time create the ones, that no longer exist in source)
+1) Send size of backup zip to the server.
+2) Send name of backup zip to the server.
+3) Send backup zip to the server and place it into correct user folder.
+4) Remove backup zip folder from client side.
 
 ### RETRIEVING BACKUP
     The procedure for retrieving is pretty much the same as for sending backup. The only diffrence is that now the server send zip folder and the client unzip it.
