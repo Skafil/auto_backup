@@ -35,10 +35,14 @@ ack_signal = sssl.recv(BUFFER_SIZE).decode(FORMAT)
 if (ack_signal.lower() == "connected to server") :
     print("ACK signal received, ", ack_signal)
 
-    ### Sending username  ###
+    ### Sending username  and password ###
     sssl.recv(BUFFER_SIZE).decode(FORMAT)
+
     username = str(input("Enter username: "))
+    password = str(input("Enter password: "))
+    
     sssl.send(username.encode(FORMAT))
+    sssl.send(password.encode(FORMAT))
 
     # Create backup zip, get path to it and its name
     backup_name, backup_path = backup.make_backup(src_path)

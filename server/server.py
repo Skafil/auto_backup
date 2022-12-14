@@ -1,12 +1,19 @@
 import os
 import socket
 import ssl
+import authenticate
 
 HOST = socket.gethostbyname(socket.gethostname()) # IPv4 address
 PORT = 40444
 BUFFER_SIZE = 4096
 BYTEORDER_LENGTH = 8 # We don't need big buffer size to send size of file
 FORMAT = "utf-8"
+DATABASE_NAME = "database.csv"
+
+# Get database path (and create it if it doesn't exist)
+database = os.path.join(os.getcwd(), DATABASE_NAME)
+if os.path.exists(database) is False:
+    os.mkdir(database)
 
 # These cert and key must be of the server
 server_cert = os.path.join(os.getcwd(), "cert.pem")
@@ -44,53 +51,56 @@ while True:
     sssl.send("Connected to server".encode(FORMAT))
     
     ### RECEIVE USERNAME ###
-    sssl.send("Please enter your username.".encode(FORMAT))
+    sssl.send("Please enter your username and password.".encode(FORMAT))
+    
     username = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+    password = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+
     destination_path = os.path.join(os.getcwd(), username)
 
-    if os.path.exists(destination_path) is False:
-        os.mkdir(destination_path)
+    user_exists = authenticate.authenticate_user(username, password, database, destination_path)
+    if user_exists is False:
+        sssl.send("The username doesn't exit. Connection closed.".encode(FORMAT))
+    else:
+        ### RECEIVE BACKUP SIZE ###
+        print("Receiving the backup size...")
+        backup_size_in_bytes = sssl.recv(BYTEORDER_LENGTH)
+        backup_size = int.from_bytes(backup_size_in_bytes, "big")
+        print("The backup size is ", backup_size, "bytes")
+        sssl.send("Backup size received!".encode(FORMAT))
 
+        ### RECEIVE BACKUP NAME ###
+        print("Receiving backup name...")
+        backup_name = sssl.recv(BUFFER_SIZE).decode(FORMAT) + ".zip"
+        user_backup = os.path.join(destination_path, backup_name)
+        print("The backup name is ", backup_name)
+        sssl.send("Backup name received".encode(FORMAT))
 
-    ### RECEIVE BACKUP SIZE ###
-    print("Receiving the backup size...")
-    backup_size_in_bytes = sssl.recv(BYTEORDER_LENGTH)
-    backup_size = int.from_bytes(backup_size_in_bytes, "big")
-    print("The backup size is ", backup_size, "bytes")
-    sssl.send("Backup size received!".encode(FORMAT))
+        ### RECEIVE BACKUP ###
+        print("Receving backup...")
+        # We are receiving binary data, so we use binary, not string.
+        # The program will gradually adds chunks of backup to this variable until the whole backup will be received
+        packet = b""
 
-    ### RECEIVE BACKUP NAME ###
-    print("Receiving backup name...")
-    backup_name = sssl.recv(BUFFER_SIZE).decode(FORMAT) + ".zip"
-    user_backup = os.path.join(destination_path, backup_name)
-    print("The backup name is ", backup_name)
-    sssl.send("Backup name received".encode(FORMAT))
+        # Until the whole backup isn't received
+        while(len(packet) < backup_size):
 
-    ### RECEIVE BACKUP ###
-    print("Receving backup...")
-    # We are receiving binary data, so we use binary, not string.
-    # The program will gradually adds chunks of backup to this variable until the whole backup will be received
-    packet = b""
+            # if there is more to received than the buffer can contain, use whole size of buffer
+            if (backup_size - len(packet)) > BUFFER_SIZE:
+                received_data = sssl.recv(BUFFER_SIZE)
+            # if it's not the case, adjust size of buffer
+            else:
+                received_data = sssl.recv(backup_size - len(packet))
+                
+            # Add this piece of data to packet
+            packet += received_data
 
-    # Until the whole backup isn't received
-    while(len(packet) < backup_size):
+            # Finally write all the data from packet into zip
+            with open(user_backup, "wb") as f:
+                f.write(packet)            
 
-        # if there is more to received than the buffer can contain, use whole size of buffer
-        if (backup_size - len(packet)) > BUFFER_SIZE:
-            received_data = sssl.recv(BUFFER_SIZE)
-        # if it's not the case, adjust size of buffer
-        else:
-            received_data = sssl.recv(backup_size - len(packet))
-            
-        # Add this piece of data to packet
-        packet += received_data
-
-        # Finally write all the data from packet into zip
-        with open(user_backup, "wb") as f:
-            f.write(packet)            
-
-        print("The backup was received")
-        sssl.send("Backup received".encode(FORMAT))
+            print("The backup was received")
+            sssl.send("Backup received".encode(FORMAT))
 
     
     sssl.close()
