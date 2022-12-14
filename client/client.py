@@ -35,6 +35,11 @@ ack_signal = sssl.recv(BUFFER_SIZE).decode(FORMAT)
 if (ack_signal.lower() == "connected to server") :
     print("ACK signal received, ", ack_signal)
 
+    ### Sending username  ###
+    sssl.recv(BUFFER_SIZE).decode(FORMAT)
+    username = str(input("Enter username: "))
+    sssl.send(username.encode(FORMAT))
+
     # Create backup zip, get path to it and its name
     backup_name, backup_path = backup.make_backup(src_path)
 
@@ -58,6 +63,9 @@ if (ack_signal.lower() == "connected to server") :
 
     sssl.close()
     print("Connection closed")
+
+    # Remove backup zip from client side
+    os.remove(backup_path)
 
 
 

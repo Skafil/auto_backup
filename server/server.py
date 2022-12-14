@@ -42,6 +42,15 @@ while True:
 
     ### SEND ACK SIGNAL ###
     sssl.send("Connected to server".encode(FORMAT))
+    
+    ### RECEIVE USERNAME ###
+    sssl.send("Please enter your username.".encode(FORMAT))
+    username = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+    destination_path = os.path.join(os.getcwd(), username)
+
+    if os.path.exists(destination_path) is False:
+        os.mkdir(destination_path)
+
 
     ### RECEIVE BACKUP SIZE ###
     print("Receiving the backup size...")
@@ -53,6 +62,7 @@ while True:
     ### RECEIVE BACKUP NAME ###
     print("Receiving backup name...")
     backup_name = sssl.recv(BUFFER_SIZE).decode(FORMAT) + ".zip"
+    user_backup = os.path.join(destination_path, backup_name)
     print("The backup name is ", backup_name)
     sssl.send("Backup name received".encode(FORMAT))
 
@@ -71,20 +81,25 @@ while True:
         # if it's not the case, adjust size of buffer
         else:
             received_data = sssl.recv(backup_size - len(packet))
-        
+            
         # Add this piece of data to packet
         packet += received_data
 
-    # Finally write all the data from packet into zip
-    with open(backup_name, "wb") as f:
-        f.write(packet)            
+        # Finally write all the data from packet into zip
+        with open(user_backup, "wb") as f:
+            f.write(packet)            
 
-    print("The backup was received")
-    sssl.send("Backup received".encode(FORMAT))
+        print("The backup was received")
+        sssl.send("Backup received".encode(FORMAT))
 
     
     sssl.close()
     print(f"Connection with {addr} has ended.")
+    
 
-'''Multithreading for multi connections
-    check tcp chat on youtube'''
+'''
+Multithreading for multi connections -check tcp chat on youtube
+Errors - username, path
+Make scripts -
+'''
+
