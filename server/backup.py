@@ -83,5 +83,7 @@ def receive_backup(sock, destination_path, BYTEORDER_LENGTH, BUFFER_SIZE, FORMAT
 
             # print("The backup was received")
             sock.send("Backup received".encode(FORMAT))
+            
     if unpack:
-        shutil.unpack_archive(backup_name, destination_path, "zip")
+        backup_path = os.path.join(destination_path, backup_name)
+        shutil.unpack_archive(backup_path, destination_path, "zip")
