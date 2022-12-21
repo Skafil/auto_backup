@@ -1,12 +1,16 @@
 import os
 import socket
 import ssl
+import sys
+import backup
+import database_manager
 
 HOST = socket.gethostbyname(socket.gethostname()) # IPv4 address
-PORT = 40444
+PORT = 40445
 BUFFER_SIZE = 4096
 BYTEORDER_LENGTH = 8 # We don't need big buffer size to send size of file
 FORMAT = "utf-8"
+DATABASE_NAME = "users.db"
 
 # These cert and key must be of the server
 server_cert = os.path.join(os.getcwd(), "cert.pem")
@@ -42,57 +46,42 @@ while True:
 
     ### SEND ACK SIGNAL ###
     sssl.send("Connected to server".encode(FORMAT))
+
+    ### RECEIVE OPTION ###
+    option = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+
+    # If client didn't write the command correctly, just end connection.
+    if option=="bad":
+        print("The server doesn't know what client want to do. Check if the script was executed correctly from terminal.")
     
-    ### RECEIVE USERNAME ###
-    sssl.send("Please enter your username.".encode(FORMAT))
-    username = sssl.recv(BUFFER_SIZE).decode(FORMAT)
-    destination_path = os.path.join(os.getcwd(), username)
+    # Otherwise...
+    else:
+        # Send request for username and password, then receive them
+        sssl.send("Please enter your username and password.".encode(FORMAT))
+        username = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+        password = sssl.recv(BUFFER_SIZE).decode(FORMAT)
+        
+        # Get path to user folder (existing or not)
+        user_folder = os.path.join(os.getcwd(), username)
 
-    if os.path.exists(destination_path) is False:
-        os.mkdir(destination_path)
+        # Create user account, by inserting his data into database and creating his folder
+        if option == "create":
+            database_manager.create_user(DATABASE_NAME, username, password)
 
-
-    ### RECEIVE BACKUP SIZE ###
-    print("Receiving the backup size...")
-    backup_size_in_bytes = sssl.recv(BYTEORDER_LENGTH)
-    backup_size = int.from_bytes(backup_size_in_bytes, "big")
-    print("The backup size is ", backup_size, "bytes")
-    sssl.send("Backup size received!".encode(FORMAT))
-
-    ### RECEIVE BACKUP NAME ###
-    print("Receiving backup name...")
-    backup_name = sssl.recv(BUFFER_SIZE).decode(FORMAT) + ".zip"
-    user_backup = os.path.join(destination_path, backup_name)
-    print("The backup name is ", backup_name)
-    sssl.send("Backup name received".encode(FORMAT))
-
-    ### RECEIVE BACKUP ###
-    print("Receving backup...")
-    # We are receiving binary data, so we use binary, not string.
-    # The program will gradually adds chunks of backup to this variable until the whole backup will be received
-    packet = b""
-
-    # Until the whole backup isn't received
-    while(len(packet) < backup_size):
-
-        # if there is more to received than the buffer can contain, use whole size of buffer
-        if (backup_size - len(packet)) > BUFFER_SIZE:
-            received_data = sssl.recv(BUFFER_SIZE)
-        # if it's not the case, adjust size of buffer
-        else:
-            received_data = sssl.recv(backup_size - len(packet))
+        # Client want to retrive his backup.
+        # Zip user folder and send it to client
+        elif option == "retrive" and database_manager.check_user(DATABASE_NAME, username, password):
+            # Full path to backup and just its name in format: "<username>_backup"
+            backup_path, backup_name = backup.make_backup(user_folder)
+            backup.send_backup(sssl, backup_path, backup_name, BYTEORDER_LENGTH, BUFFER_SIZE, FORMAT)
             
-        # Add this piece of data to packet
-        packet += received_data
+            # Remove backup zip
+            os.remove(backup_path)
 
-        # Finally write all the data from packet into zip
-        with open(user_backup, "wb") as f:
-            f.write(packet)            
+        # Client is sending backup, receive it and put into his folder
+        elif option == "send" and database_manager.check_user(DATABASE_NAME, username, password):    
+            backup.receive_backup(sssl, user_folder, BYTEORDER_LENGTH, BUFFER_SIZE, FORMAT, unpack=True)
 
-        print("The backup was received")
-        sssl.send("Backup received".encode(FORMAT))
-
-    
     sssl.close()
     print(f"Connection with {addr} has ended.")
     
@@ -103,3 +92,6 @@ Errors - username, path
 Make scripts -
 '''
 
+### PROBLEMY
+# 1) W konsoli nie moze byc widoczne jakie haslo jest wpisywanie
+# 2) Haslo mozna przeslac niezakodowane dzieki ssl, ale w bazie danych przechowajmy je zakodowane jakims algorytmem + sol
