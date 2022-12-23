@@ -1,7 +1,6 @@
 import os
 import socket
 import ssl
-import sys
 import backup
 import database_manager
 

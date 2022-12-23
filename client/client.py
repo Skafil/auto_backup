@@ -3,6 +3,7 @@ import socket
 import ssl
 import argparse
 import sys
+from getpass import getpass
 import backup
 
 # In future the user will have to input these information
@@ -89,7 +90,7 @@ if (ack_signal.lower() == "connected to server") :
 
     ### Sending username  and password ###
     username = str(input("Enter username: "))
-    password = str(input("Enter password: "))
+    password = str(getpass("Enter password: "))
     sssl.send(username.encode(FORMAT))
     sssl.send(password.encode(FORMAT))
 

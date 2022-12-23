@@ -1,5 +1,18 @@
 import sqlite3
 import os
+import hashlib
+
+def get_key(pw, salt):
+    
+    key = hashlib.pbkdf2_hmac(
+        'sha256',   # Hash algorithm name
+        pw.encode('utf-8'),   # Password in bytes
+        salt,
+        100000, # number of iterationts, recommended at least 100 000 for SHA-256
+        # Optional use dklen - len of key, default is 64
+    )
+
+    return key
 
 def create_user(database_name, username, password):
     # Connect to database( create it if doesn't exist)
@@ -7,14 +20,21 @@ def create_user(database_name, username, password):
     database = sqlite3.connect(db_path)
 
     cursor = database.cursor()
-
     try:
         cursor.execute(""" CREATE TABLE users (
                 user text,
-                password text
+                salt text,
+                key text
         )""")
+        database.commit()
     except:
-        cursor.execute("INSERT INTO users (user, password) VALUES (:name, :pass)", {'name': username, 'pass': password})
+        pass
+
+    # Generate salt in bytes. The length should be at least 16.
+    # This function doesn't use pseudo-random number generator = unpredictable.
+    salt = os.urandom(32)
+    key = get_key(password, salt)
+    cursor.execute("INSERT INTO users (user, salt, key) VALUES (:name, :salt, :key)", {'name': username, 'salt': salt, 'key': key})
 
     database.commit()
     database.close()
@@ -35,14 +55,28 @@ def check_user(database_name, username, password):
     try:
         cursor.execute(""" CREATE TABLE users (
                 user text,
-                password text
+                salt text,
+                key text
         )""")
     except:
-        cursor.execute("SELECT * FROM users WHERE user=:name AND password=:pass", {'name': username, 'pass': password})
+        cursor.execute("SELECT salt, key FROM users WHERE user=:name", {'name': username})
         
-        data = cursor.fetchone()
-        if data != None:
-            user_exists = True
+        # Get all the result of executing above command
+        results = cursor.fetchall()
+
+        # If there are any users with given names
+        if results != None:
+
+            # Check every one of them...
+            for data in results:
+
+                # By getting their salt, creating key and comparing it with the one in database
+                salt = data[0]
+                key = get_key(password, salt)
+                if key == data[1]:
+                    # If the keys are the same, then the user exists and the password was correct
+                    user_exists = True
+
     database.commit()
     database.close()
 
