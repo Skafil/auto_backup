@@ -22,8 +22,6 @@ def make_backup(source_path):
 def send_backup(sock, backup_path, backup_name, BYTEORDER_LENGTH, BUFFER_SIZE, FORMAT):
 
     # SEND BACKUP SIZE
-    # print("Sending size of backup in bytes to the server...")
-    print(backup_path)
     backup_size = os.path.getsize(backup_path)
     backup_size_in_bytes = backup_size.to_bytes(BYTEORDER_LENGTH, "big")
     sock.send(backup_size_in_bytes)
@@ -83,5 +81,7 @@ def receive_backup(sock, destination_path, BYTEORDER_LENGTH, BUFFER_SIZE, FORMAT
 
             # print("The backup was received")
             sock.send("Backup received".encode(FORMAT))
+            
     if unpack:
-        shutil.unpack_archive(backup_name, destination_path, "zip")
+        backup_path = os.path.join(destination_path, backup_name)
+        shutil.unpack_archive(backup_path, destination_path, "zip")

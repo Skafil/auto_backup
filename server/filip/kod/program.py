@@ -1,1 +1,0 @@
-# Jestem program w pythonie i jestem oryginałem
